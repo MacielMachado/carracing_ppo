@@ -36,6 +36,7 @@ class TransformImage(gym.ObservationWrapper):
         return obs, reward, terminated, truncated, info
 
     def reset(self, **kwargs):
+        kwargs['seed'] = 45
         obs, info = self.env.reset(**kwargs)
         obs = np.transpose(obs, (0, 3, 1, 2))
         obs = np.reshape(obs, (obs.shape[0]*obs.shape[1], obs.shape[2], obs.shape[3]))
@@ -612,15 +613,13 @@ if __name__ == '__main__':
             max_grad_norm=max_grad_norm)
 
 
-    num_steps = 512
+    num_steps = 1024
 
     rollouts = RolloutStorage(num_steps, num_processes, env.observation_space.shape, env.action_space)
 
     obs = env.reset()
     obs = torch.from_numpy(obs)
     rollouts.obs.copy_(obs)
-
-
 
     video_path = "./videoo"
     env_video = CarRacing(render_mode="rgb_array", domain_randomize=False)
@@ -704,31 +703,8 @@ if __name__ == '__main__':
                 obs = torch.from_numpy(obs).float()
                 obs = obs.unsqueeze(0).to(device)
                 with torch.no_grad():
-                    _, action, _ = actor_critic.act(obs)
+                    _, action, _ = actor_critic.act(obs, deterministic=True)
                 action = action[0].cpu().numpy()
                 obs, reward, done, truncated, info = env_video.step(action)
                 done |= truncated
                 step += 1
-
-    torch.save(actor_critic.state_dict(), "model.pt")
-    env.reset()
-
-    video_path = "./videoo"
-    env_video = CarRacing(render_mode="rgb_array", domain_randomize=False)
-    env_video = FrameStack(env_video, 4)
-    env_video = TransformImage(env_video)
-    env_video = TimeLimit(env_video, 1000)
-    env_video = TransformAction(env_video)
-    env_video = RecordVideo(env_video, video_path)
-    obs, _ = env_video.reset()
-    done = False
-    step = 0
-    while not done:
-        obs = torch.from_numpy(obs).float()
-        obs = obs.unsqueeze(0).to(device)
-        with torch.no_grad():
-            _, action, _ = actor_critic.act(obs)
-        action = action[0].cpu().numpy()
-        obs, reward, done, truncated, info = env_video.step(action)
-        done |= truncated
-        step += 1
