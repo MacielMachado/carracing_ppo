@@ -95,11 +95,11 @@ from gym.wrappers import TimeLimit, TransformObservation, AutoResetWrapper
 def make_env():
     env = CarRacing(render_mode="rgb_array", domain_randomize=False)
     env = TimeLimit(env, 1000)
-    env = AutoResetWrapper(env)
+    env = AutoResetWrapper(env)  # Reinicializa o ambiente quando este chega em done
     env = FrameStack(env, 4)
-    env = TransformImage(env)
+    env = TransformImage(env)  # Reestrutura a ordem das observations e o reset, alem disso mudo o observation_space
     env = EpisodeReward(env)
-    env = TransformAction(env)
+    env = TransformAction(env)  # Muda a ação para ter apenas duas dimensoes
     return env
 
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
@@ -157,7 +157,7 @@ class DiagGaussian(nn.Module):
         super(DiagGaussian, self).__init__()
 
         init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
-                               constant_(x, 0))
+                               constant_(x, 0))  # é definida para inicializar os pesos da camada linear (nn.Linear) usando a inicialização ortogonal e, em seguida, definir a função de ativação para zero.
 
         self.fc_mean = init_(nn.Linear(num_inputs, num_outputs))
         self.logstd = AddBias(torch.zeros(num_outputs))
@@ -572,16 +572,16 @@ def always_true(i_epoch):
 import time
 
 if __name__ == '__main__':
-    num_processes = 4
-    env = SubprocVecEnv([make_env for _ in range(num_processes)], start_method='spawn')
-    env = VecNormalize(env, norm_obs=False, norm_reward=True)
-    env.reset()
+    num_processes = 4  # Quantidade de processos rodando em paralelo
+    env = SubprocVecEnv([make_env for _ in range(num_processes)], start_method='spawn')  # Pilha de 'num_processes' 
+    env = VecNormalize(env, norm_obs=False, norm_reward=True)  # Normalize observations and rewards
+    env.reset()  # Reset all the 'num_processes' environments
 
     actor_critic = Policy(
         env.observation_space.shape,
         env.action_space,
         activation=None
-    )
+    )  # Define a política a ser seguida pelo agente
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     actor_critic = actor_critic.to(device)
 
